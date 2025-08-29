@@ -1,0 +1,753 @@
+---
+title: "Research of predictors for better health outcomes at the county level in the United States"
+author: "530369855"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+# Introduction 
+
+The research question for this report is: What are the key predictors of premature age-adjusted mortality at the county level across the United States? This research seeks to find the predictors contributing to health outcomes by focusing on premature age-adjusted mortality rates as the primary health measure across US counties. As mentioned in the research plan, the theory was to investigate the 4 categories of predictors, and now the predictors have expanded to 6 categories. The motivation behind this investigation is that despite the United States' high healthcare expenditure, it has a lower life expectancy compared to other affluent democracies. This study wants to reveal the underlying factors that contribute to this situation.
+
+The central hypothesis promoted that there is a significant correlation between health, clinical, socio-economic, environmental, and demographic factors and the premature age-adjusted mortality rate, influencing overall health outcomes across the United States. In specific to each factor, we hypothesise that bad health behaviours have a direct positive correlation with higher mortality rates; Access to good clinical care should be an important factor inversely affecting mortality rates; High economic problems, social problems and public risks are anticipated to correlate directly with increased mortality rates; demographics factor is expected to less impact on the mortality and in positive relation.
+
+Following this structured approach of the hypothesis of 6 predictors, we will allow the study to critically examine the strength of influence of these factors on the premature age-adjusted mortality rate at the county level, by employing statistical analyses and data visualization techniques to validate these hypotheses. 
+
+\vspace{6mm}
+
+# Literature and theory
+
+Health Behaviors: Research consistently highlights health behaviours as the directly contributing factors to health outcomes, such as adult smoking, excessive drinking and drug overdose deaths. Smoking is a major health risk factor for various chronic diseases associated with mortality (Eisner et al., 2009). Excessive Drinking is also linked to many issues, from liver disease to accidental injuries (James et al., 2015). Drug overdose deaths, especially from opioids, have been identified as a remarkable phenomenon in society (Barber et al., 2017), and cause an increase in premature age-adjusted mortality.
+
+Clinical Care: Access to clinical care should directly contribute to the death from disease, and premature age-adjusted mortality as well. Counties with higher rates of uninsured populations face barriers to accessing health care (Remington et al., 2015), which might be confounding related to higher rates of preventable hospital stays. The cost of healthcare also influences health outcomes, as mortality could happen if individuals can not afford the high cost (Majeed et al., 2023).
+
+Economic Environment: the economic problems in unemployment correlate with poor health outcomes, as employment provides guaranteed overall well-being ((Colley et al., 2018).). Income inequality affects the unequal access to resources from clinical care to life quality (Ezzati et al., 2008). Housing problems, including homelessness and bad living conditions, can also directly impact physical and mental health, and cause mortality. 
+
+Social Environment: Studies by (Pope et al., 2009) demonstrated air pollution is a major environmental hazard associated with diseases. Disconnected youth, who are unable to be self-reliant, often encounter various health risks. Additionally, the residential segregation factor can lead to disparities, with unfair resources in society compared to others.\, which further influences health outcomes across communities (Hood et al., 2016).
+
+Public Health Risk: The high accidental deaths from the public typically are motor vehicle mortality rates, homicide rates, and firearm fatalities. These indicators not only reflect the accidents themselves but include the infrastructure quality, public safety policies the underlying issues (Majeed et al., 2023).
+
+Demographics: Factors such as age distribution and racial composition also influence health outcomes. Percentage of the population over 65 and those below 18, are relatively vulnerable to encouraging illness and accidents, presenting more possible age-adjusted mortality rates. African American communities often face unique health challenges due to racial inequities which can affect their health outcomes disproportionately (Barber et al., 2017).
+
+This literature review demonstrates the complexity of factors influencing mortality, and for each category, the variables seem to be highly related as confounding variables. The method to handle the confounding effects for them is to utilise the factor analysis which will be introduced in the methodology part.
+
+\vspace{6mm}
+
+# Data and methodology 
+
+The primary dataset comes from the Robert Wood Johnson Foundation and the University of Wisconsin Population Health Institute, which offers a comprehensive look at various health indicators across U.S. counties. The data collected from the organisation complies with the investigation and census annually to form this detailed dataset. The secondary dataset is the spatial aspect of county-level data sourced from the US Census Bureau and the Centers for Disease Control and Prevention (CDC), for we build up the map graphs.
+
+There are the specific groups of variables: 
+Health Behaviors: Included variables like smoking rates, excessive drinking, and drug overdose mortality rates.
+Clinical Care: Composed of variables such as uninsured rates, preventable hospital rates, and healthcare costs.
+Economic Environment: Included unemployment rate, income inequality, and severe housing problems.
+Social Environment: Included PM2.5 air pollution, disconnected youth, and racial segregation.
+Public Health Risk: Included motor vehicle mortality rate, homicide rate, and firearm fatalities rate.
+Demographics: Included percentages of populations above 65, under 18, and African American.
+
+Potential biases in the data may include: Selection bias that the data might be completely collected equally or randomly for all counties, like some smaller counties might not have enough indicators; Measurement bias that counties may have a different measure of how the data is collected and reported in the dataset; Reporting bias that some country could not report the real health issues due to the political pressure. My bias mitigation strategies are that use statistical techniques that select the variable on the ratio or percentage data to avoid the population size difference and employ re-scale and normalisation on the dataset.
+As mentioned above in the theory, we have 18 variables over 6 categories, and obviously, it seems too much for the study. Therefore the factor analysis metic is applied, which is to reduce the complexity of multiple variables into fewer, interpretable underlying factors, each representing a specific domain relevant to the study. For the 18 variables, each set of variables conducted a factor analysis to extract a single factor to simplify into one-dimensionality the data and named the corresponding categories score. Now we have 6 independent variables score in Health Behaviors, Clinical Care, Economic Environment, Social Environment, Public Health Risk, and Demographics. While the premature age-adjusted mortality will serve as the dependent variable in this study.
+
+Before factor analysis, it needs to handling and prepare the data from the dataset was filtered to remove the row with missing county name, while the missing value for the other factors was imputed using the mean of the respective variable, ensuring the statistical integrity and avoiding the whole removal of the row. It can maintain the general distribution of the data. Then further data involved normalization to a scale between 0 and 1, which helps mitigate the impact of outliers, however, after the factor analysis, the factor data follow the score distribution, and only the mortality keeps a scale of 0 and 1.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+library(readxl)
+library(dplyr)
+library(psych)
+library(ggplot2)
+library(corrplot)
+library(knitr)
+library(sf)
+file_path <- "Data/2018 County Health Rankings Data - v2.xls"
+data_rank <- read_excel(file_path, sheet = "Ranked Measure Data")
+data_add <- read_excel(file_path, sheet = "Additional Measure Data")
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+selected_data1 <- data_add %>%
+  select(
+    County,
+    State,
+    Age_Adjusted_Mortality = `Age-Adjusted Mortality`,
+    Drug_Overdose = `Range Drug Overdose Mortality Rate`,
+    Health_Care_Costs = Costs,
+    Disconnected_Youth = `% Disconnected Youth`,
+    Segregation_Index = `Segregation Index non-white/white`,
+    MV_Mortality_Rate = `MV Mortality Rate`,
+    Homicide_Rate = `Homicide Rate`,
+    Firearm_Fatalities_Rate = `Firearm Fatalities Rate`,
+    Percent_above_65 = `% 65 and over`,
+    Percent_Under_18 = `% < 18`,
+    Percent_African = `% African American`
+  )
+                
+selected_data2 <- data_rank %>%
+  select(
+    County,
+    State,
+    Smokers_Percentage = `% Smokers`,
+    Excessive_Drinking = `% Excessive Drinking`,
+    Uninsured_Rate = `% Uninsured`,
+    Preventable_Hospital_Rate = `Preventable Hosp. Rate`,
+    Unemployment_Rate = `% Unemployed`,
+    Income_Inequality_Ratio = `Income Ratio`,
+    Severe_Housing_Problems = `% Severe Housing Problems`,
+    PM2_5_Concentration = `Average Daily PM2.5`
+  )
+
+selected_data = full_join(selected_data1,selected_data2)%>%
+  filter(!is.na(County))
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+normalized_data <- data.frame(lapply(selected_data, function(x) {
+  if(is.numeric(x)) {
+    (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))
+  } else {
+    x
+  }
+}))
+
+imputed_data <- normalized_data %>%
+  mutate(across(where(is.numeric), ~ifelse(is.na(.), mean(., na.rm = TRUE), .)))
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+health_behaviors <- imputed_data %>%
+  select(Smokers_Percentage, Excessive_Drinking, Drug_Overdose)
+
+# Clinical Care
+clinical_care <- imputed_data %>%
+  select(Uninsured_Rate, Preventable_Hospital_Rate, Health_Care_Costs)
+
+# Economic Environment
+economic_environment <- imputed_data %>%
+  select(Unemployment_Rate, Income_Inequality_Ratio, Severe_Housing_Problems)
+
+# Social Environment
+social_environment <- imputed_data %>%
+  select(PM2_5_Concentration, Disconnected_Youth, Segregation_Index)
+
+# Public Health Risk
+public_health_risk <- imputed_data %>%
+  select(MV_Mortality_Rate, Homicide_Rate, Firearm_Fatalities_Rate)
+
+# Demographics
+demographics <- imputed_data %>%
+  select(Percent_above_65, Percent_Under_18, Percent_African)
+
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+fa_health_behaviors <- fa(health_behaviors, nfactors = 1, rotate = "none")
+scores_health_behaviors <- factor.scores(health_behaviors, fa_health_behaviors)$scores[,1]
+
+fa_clinical_care <- fa(clinical_care, nfactors = 1, rotate = "none")
+scores_clinical_care <- factor.scores(clinical_care, fa_clinical_care)$scores[,1]
+
+fa_economic_environment <- fa(economic_environment, nfactors = 1, rotate = "none")
+scores_economic_environment <- factor.scores(economic_environment, fa_economic_environment)$scores[,1]
+
+fa_social_environment <- fa(social_environment, nfactors = 1, rotate = "none")
+scores_social_environment <- factor.scores(social_environment, fa_social_environment)$scores[,1]
+
+fa_public_health_risk <- fa(public_health_risk, nfactors = 1, rotate = "none")
+scores_public_health_risk <- factor.scores(public_health_risk, fa_public_health_risk)$scores[,1]
+
+fa_demographics <- fa(demographics, nfactors = 1, rotate = "none")
+scores_demographics <- factor.scores(demographics, fa_demographics)$scores[,1]
+
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+final_scores <- data.frame(
+  County = imputed_data$County,
+  State = imputed_data$State,
+  Mortality = imputed_data$Age_Adjusted_Mortality,
+  Behavior = scores_health_behaviors,
+  Clinical = scores_clinical_care,
+  Economic = scores_economic_environment,
+  Social = scores_social_environment,
+  Risk = scores_public_health_risk,
+  Demographics = scores_demographics
+)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+scores <- final_scores %>% select(-County, -State)
+
+summary_stats <- sapply(scores, summary) 
+summary_stats <- data.frame(summary_stats, check.names = FALSE, stringsAsFactors = FALSE)
+
+stats_df <- data.frame(
+  Term = c("Min", "1st Qu.", "Median", "Mean", "3rd Qu.", "Max")
+)
+
+for (var in names(summary_stats)) {
+  stats_df[[var]] <- sapply(summary_stats[[var]], function(x) {
+    round(as.numeric(sub(".*:\\s*", "", x)), digits = 6)
+  })
+}
+kable(stats_df, booktabs = TRUE, caption = "Score Summary")
+```
+\vspace{6mm}
+
+This table is the result of the score summary interpretation that provides descriptive statistics of all variables for view. The key observation from the table is that the factor scores have a close mean to 0 which indicates the zero central origin point, so the positive scores indicate above-average presence of the factor and negative scores indicate below-average presence.
+
+For a better understanding of the variable outcomes after implementing factor analysis, there are a series of graphs illustrating various aspects of the data being analysed, specifically focusing on 3 types of graphs. The histograms are utilised to show the frequency of distribution of each variable including premature age-adjusted mortality. The scatter plots show the relationship between these variable scores and premature age-adjusted mortality. The boxplots of factor scores by category tell the overall factor scores by category and the structure of each data.
+
+\vspace{6mm}
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyr)
+final_scores_long <- final_scores %>%
+  select(-Mortality) %>%
+  pivot_longer(cols = -c(County, State), names_to = "Category", values_to = "Score")
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(final_scores_long, aes(x = Category, y = Score)) +
+  geom_boxplot() +
+  theme_minimal() +
+  theme(axis_text_x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Factor Scores by Category", x = "Category", y = "Score")
+
+```
+\vspace{6mm}
+
+These boxplots provide a summary of the distributions of factor scores across 6 different categories The medians are close to zero for most categories, indicating centred distributions. The spread and outliers in these plots reveal the variance in each category across counties, with some categories like 'Risk' and 'Economic' showing wider spreads and more outliers, suggesting greater variability in these factors across different regions.
+
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE , fig.width=7, fig.height=4}
+ggplot(final_scores, aes(x = Mortality)) +
+  geom_histogram(bins = 40, fill = "black", alpha = 0.7) +
+  ggtitle("Distribution of Premature Age-Adjusted Mortality") +
+  xlab("Premature Age-Adjusted Mortality") +
+  ylab("Frequency")
+```
+\vspace{6mm}
+
+This symmetrical distribution centred on 0.25 shows that most counties have mortality rates around this middle value, with fewer counties exhibiting very high or very low rates.
+
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=4}
+ggplot(final_scores, aes(x = Behavior)) +
+  geom_histogram(bins = 40, fill = "black", alpha = 0.7) +
+  ggtitle("Distribution of Health Behaviors Score") +
+  xlab("Health Behaviors Score") +
+  ylab("Frequency")
+```
+\vspace{6mm}
+
+This distribution centred on 0, but looks wide and normally distributed data for health behaviours.
+
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=4}
+ggplot(final_scores, aes(x = Mortality, y = Behavior)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  ggtitle("Premature Age-Adjusted Mortality vs. Health Behaviors") +
+  xlab("Premature Age-Adjusted Mortality") +
+  ylab("Behavior Score")
+```
+\vspace{6mm}
+
+This scatter plot has a positive correlation that higher scores in health behaviours tend to have higher premature mortality rates.
+
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=4}
+ggplot(final_scores, aes(x = Clinical)) +
+  geom_histogram(bins = 40, fill = "black", alpha = 0.7) +
+  ggtitle("Distribution of Clinical Care Score") +
+  xlab("Clinical Care Score") +
+  ylab("Frequency")
+```
+\vspace{6mm}
+
+This distribution of clinical care scores suggests a typical normal distribution of 0.
+
+\vspace{6mm}
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=4}
+ggplot(final_scores, aes(x = Mortality, y = Clinical)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  ggtitle("Premature Age-Adjusted Mortality vs. Clinical Care") +
+  xlab("Premature Age-Adjusted Mortality") +
+  ylab("Clinical Care Score")
+```
+\vspace{6mm}
+
+This scatter plot has a positive correlation that higher scores in clinical care tend to have higher premature mortality rates.
+
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=4}
+# Economic Environment Histogram
+ggplot(final_scores, aes(x = Economic)) +
+  geom_histogram(bins = 40, fill = "black", alpha = 0.7) +
+  ggtitle("Distribution of Economic Environment Score") +
+  xlab("Economic Environment Score") +
+  ylab("Frequency")
+```
+\vspace{6mm}
+This distribution of economic factors suggests a typical normal distribution of 0.
+
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=4}
+ggplot(final_scores, aes(x = Mortality, y = Economic)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  ggtitle("Premature Age-Adjusted Mortality vs. Economic Environment") +
+  xlab("Premature Age-Adjusted Mortality") +
+  ylab("Economic Environment Score")
+```
+\vspace{6mm}
+This scatter plot has a positive correlation that higher scores in economic environments tend to have higher premature mortality rates.
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=4}
+# Social Environment Histogram
+ggplot(final_scores, aes(x = Social)) +
+  geom_histogram(bins = 40, fill = "black", alpha = 0.7) +
+  ggtitle("Distribution of Social Environment Score") +
+  xlab("Social Environment Score") +
+  ylab("Frequency")
+```
+\vspace{6mm}
+This distribution of social factors suggests a typical normal distribution of 0.
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=4}
+ggplot(final_scores, aes(x = Mortality, y = Social)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  ggtitle("Premature Age-Adjusted Mortality vs. Social Environment") +
+  xlab("Premature Age-Adjusted Mortality") +
+  ylab("Social Environment Score")
+```
+\vspace{6mm}
+This scatter plot has a slightly negative but tends to a flat correlation that social environment score may not be strongly predictive of mortality.
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=4}
+# Public Health Risk Histogram
+ggplot(final_scores, aes(x = Risk)) +
+  geom_histogram(bins = 40, fill = "black", alpha = 0.7) +
+  ggtitle("Distribution of Public Health Risk Score") +
+  xlab("Public Health Risk Score") +
+  ylab("Frequency")
+```
+\vspace{6mm}
+This distribution of health risk scores suggests a normal distribution of 0 but has an extremely high frequency of 0.
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=4}
+ggplot(final_scores, aes(x = Mortality, y = Risk)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  ggtitle("Premature Age-Adjusted Mortality vs. Public Health Risk") +
+  xlab("Premature Age-Adjusted Mortality") +
+  ylab("Public Health Risk Score")
+```
+\vspace{6mm}
+This scatter plot has a positive correlation that higher scores in public health risks tend to have higher premature mortality rates.
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=4}
+# Demographics Histogram
+ggplot(final_scores, aes(x = Demographics)) +
+  geom_histogram(bins = 40, fill = "black", alpha = 0.7) +
+  ggtitle("Distribution of Demographics Score") +
+  xlab("Demographics Score") +
+  ylab("Frequency")
+```
+\vspace{6mm}
+This distribution of demographic factors suggests a typical normal distribution of 0.
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=4}
+ggplot(final_scores, aes(x = Mortality, y = Demographics)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  ggtitle("Premature Age-Adjusted Mortality vs. Demographics") +
+  xlab("Premature Age-Adjusted Mortality") +
+  ylab("Demographics Score")
+```
+\vspace{6mm}
+This scatter plot has a slightly positive but tends to a flat correlation that social environment score may not be strongly predictive of mortality.
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=4}
+
+numeric_data <- final_scores %>%
+  select(-County) %>%
+  select_if(is.numeric)
+
+# Compute the correlation matrix
+corr_matrix <- cor(numeric_data, use = "complete.obs")
+
+# Round the correlation matrix to four decimal places
+corr_matrix_rounded <- round(corr_matrix, 4)
+corrplot(corr_matrix, method = "circle", type = "full", 
+         tl.cex = 0.7, tl.col = "black", 
+         addCoef.col = "black", 
+         number.cex = 0.6, 
+         mar = c(0, 0, 1, 0), 
+         cl.cex = 0.7, cl.ratio = 0.3,
+         addgrid.col = "black",
+         col = colorRampPalette(c("#FF7F0E", "#E0E0E0", "#1F77B4"))(200))
+```
+\vspace{6mm}
+To analyse the confounding variables, we can use the correlation matrix heatmap, that which each cell in the matrix represents the correlation coefficient between two variables, ranging from -1 to 1. A value close to 1 indicates a positive correlation, close to -1 for negative correlations, 0 for no correlation, and 1 for a perfect correlation but usually corresponds to the variable itself. 
+
+The result from the heatmap shows the high correlations on Mortaily have strong positive correlations with Behavior (0.74), Clinical (0.51), Economic (0.44), and Risk (0.55), and they could be significant predictors for the dependent variable. Low or negative correlations are social factors with morality, and demographics show generally low correlations with all other factors and mortality, so these could have less impact. The possible confounding variables are behaviour and risk factor (0.47), but this value does not seem to be too high to become the confounding variable. Then we will conduct a linear regression to further explore the relationship between these factors the mortality.
+
+\vspace{6mm}
+
+# Results
+
+Following this structured approach of the hypothesis of 6 predictors, we will allow the study to critically examine the strength of influence of these factors on the premature age-adjusted mortality rate at the county level, by employing statistical analyses and data visualisation techniques to validate these hypotheses.
+\vspace{6mm}
+
+```{r}
+set.seed(123)
+
+train_index <- sample(1:nrow(imputed_data), size = floor(0.7 * nrow(imputed_data)))
+train_data <- final_scores[train_index, ]
+test_data <- final_scores[-train_index, ]
+
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Assuming final_scores is already loaded and prepared
+# Build the linear regression model
+model <- lm(Mortality ~ Behavior + Clinical + Economic + Social + Risk + Demographics, data = train_data)
+
+# Summarize the model
+model_summary <- summary(model)
+```
+
+```{r}
+summary_df <- data.frame(
+  Term = c("Residual Standard Error", "Multiple R-squared", "Adjusted R-squared", "F-statistic", "p-value"),
+  Value = c(
+    sprintf("%.5f", model_summary$sigma),
+    sprintf("%.5f", model_summary$r.squared),
+    sprintf("%.5f", model_summary$adj.r.squared),
+    sprintf("%.1f on %d and %d DF", model_summary$fstatistic[1], model_summary$fstatistic[2], model_summary$fstatistic[3]),
+    format.pval(pf(model_summary$fstatistic[1], model_summary$fstatistic[2], model_summary$fstatistic[3], lower.tail = FALSE))
+  )
+)
+
+residuals_summary <- model_summary$residuals
+residuals_df <- data.frame(
+  Term = c("Minimum", "1st Quartile", "Median", "3rd Quartile", "Maximum"),
+  Value = c(residuals_summary[1], residuals_summary[2], residuals_summary[3], residuals_summary[4], residuals_summary[5]),
+  row.names = NULL
+)
+
+kable(residuals_df, booktabs = TRUE, caption = "Residuals Summary")
+kable(model_summary$coefficients, booktabs = TRUE, caption = "Coefficients Summary")
+kable(summary_df, booktabs = TRUE, caption = "Model Summary")
+
+```
+\vspace{6mm}
+The linear regression model was formulated as the dependent variable of Mortality, and the independent variables of Behavior + Clinical + Economic + Social + Risk + Demographics from the factor analysis scores data. Also, the dataset needs to be split into training and testing data, to build the model and verify the model.
+These tables of the summary for the model can tell us the significance and the performance of the model:  
+Residual Standard Error at 0.06192: This indicates that the model has a high accuracy in predicting premature mortality rates, implying a good model fit.
+Multiple R-squared at 0.67552 and Adjusted R-squared at 0.67463: This indicates approximately 67 % of mortality can be explained by the independent variables included in the model, and suggest that selected variables are good predictors of mortality rates.
+F-statistic and P-value: 760.6 on 6 and 2192 DF, and < 2.22e-16 can the overall model is statistically significant, and at least one of the predictors significantly affects premature mortality.
+For the Coefficients Summary:
+Behaviour (0.063122) is positive and the most significant as a strong relation. 
+Clinical (0.026400) ) is positive and significant as a strong relation. 
+Economic (0.016385) is also positive and significant as a strong relation. 
+Social (0.004454) is the smallest positive coefficient and is less significant as a weak relation. 
+Risk (0.032926) is positive and significant as a strong relation as well. 
+Demographics (-0.002876) is the only negative coefficient, and less significant as a weak relation. 
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=4}
+# Diagnostic plots
+par(mfrow = c(2, 2))
+plot(model)
+```
+\vspace{6mm}
+
+The visualisations of the model can also show the performance in another aspect. By the observation of these 4 graphs, there are some key findings: The residuals are relatively well distributed across the range of fitted values, suggesting the correction of the linear relationship. Also, there are the influences of the outliers on the distribution, which is related to the normality of the data.
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, }
+predicted_values <- predict(model, test_data)
+
+test_data$Predicted_mortality <- predicted_values
+#Mean Squared Error
+mse <- mean((predicted_values - test_data$Mortality)^2)
+
+#R-squared
+ss_total <- sum((test_data$Mortality - mean(test_data$Mortality))^2)
+ss_res <- sum((predicted_values - test_data$Mortality)^2)
+r_squared <- 1 - (ss_res / ss_total)
+
+performance_metrics <- data.frame(
+  Term = c("Mean Squared Error", "R-squared"),
+  Value = c(mse, r_squared)
+)
+kable(performance_metrics, booktabs = TRUE, caption = "Predict Performance Metrics")
+```
+\vspace{6mm}
+Furthermore, the predictive analysis metric was applied to assess the actual accuracy of the model in predicting the mortality rate of testing data. There are two key performance indicators shown in the table, Mean Squared Erro (0.0039971) measures the average of the squares of the errors and is relatively low, suggesting that the model prediction is very close to the actual values. R-squared (0.638078) is slightly lower than in the model summary but acceptable, which similarly indicates that 63.81% of the independent variables can account for the dependent variables with significance.  
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=4}
+test_data <- test_data %>%
+  mutate(residual = abs(Mortality - Predicted_mortality))  #
+
+color_palette <- colorRampPalette(c("pink", "red","darkred"))
+
+ggplot(test_data, aes(x = Mortality, y = Predicted_mortality)) +
+  geom_point(aes(color = residual), alpha = 0.8) +  #
+  scale_color_gradientn(colors = color_palette(100), 
+                        limits = range(test_data$residual),
+                        na.value = "grey", 
+                        guide = "colourbar") +
+  geom_abline(slope = 1, intercept = 0, color = 'black', linetype = 'dashed') +
+  labs(title = "Actual vs Predicted Premature Age-Adjusted Mortality",
+       x = "Actual Premature Age-Adjusted Mortality",
+       y = "Predicted Premature Age-Adjusted Mortality",
+       color = "Residual") +
+  theme_minimal() +
+  theme(legend.position = "right")
+```
+\vspace{6mm}
+This visualisation of the scatter plot compares the actual premature age-adjusted mortality rates in the x-axis against the predicted rates in the y-axis derived from the linear regression model. There is a reference line in the middle indicating the points that deviated from the line were less accurate, and visualised by the colour intensity. The key finding for the graph is that most clustering of points are along and near the reference line, so the predictions closely match the actual values.
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+
+
+us.shape <- 
+  st_read("Data/US data for group task/US shapefiles/cb_2016_us_county_20m.shp")
+fip.concordance <- read.csv("Data/US data for group task/fips concordance.csv")
+
+us.shape <- us.shape %>% 
+  merge(fip.concordance %>%
+          mutate(STATEFP =  ifelse(Numeric.code >= 0 & Numeric.code <= 9, 
+                             paste0(0 , Numeric.code), Numeric.code)) %>%
+          dplyr::rename(state = Alpha.code))
+
+
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+us.shape$county <- paste0(us.shape$NAME, ", ", us.shape$state)
+
+us.shape$county <- gsub("Doña Ana, NM", "Dona Ana, NM", us.shape$county)
+us.shape$county <- gsub("LaSalle, LA", "La Salle, LA", us.shape$county)
+us.shape$county <- gsub("Oglala Lakota, SD", "Oglala, SD", us.shape$county)
+ 
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+us.shape <- left_join(us.shape, final_scores, by = c("NAME" = "County", "Name" = "State"))
+
+```
+\vspace{6mm}
+
+The heatmap with actual geography across the US countries is also a useful tool for providing spatial distribution of premature age-adjusted mortality and various predictive factors. Here is the explanation of the maps and the observations from the maps support the theoretical understanding of factors affecting mortality rate. 
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = us.shape) +
+  geom_sf(aes(fill = Mortality), color = NA) +
+  scale_fill_gradientn(
+    colors = c("grey", "dark red"),
+    values = scales::rescale(c(0, 0.5, 1)), 
+    limits = c(0, 1),
+    na.value = "white"
+  ) +
+  labs(
+    title = "Map of Age-Adjuested Mortality",
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14),
+    legend.position = "right"
+  ) +
+  coord_sf(xlim = c(-125, -66), ylim = c(24, 50))
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+plot_data_map <- function(data, var_name, xlim, ylim, title) {
+  if (!var_name %in% names(data)) {
+    stop("The specified variable does not exist in the data set.")
+  }
+
+  var_range <- range(data[[var_name]], na.rm = TRUE)
+
+  p <- ggplot(data = data) +
+    geom_sf(aes(fill = !!sym(var_name)), color = NA) +
+    scale_fill_gradient(
+      low = "light blue",
+      high = "dark red",
+      name = "Score",
+      na.value = "white",
+      limits = var_range
+    ) +
+    labs(
+      title = title,
+      fill = "Score"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(size = 12),
+      legend.position = "right",
+      legend.title = element_blank()
+    ) +
+    coord_sf(xlim = xlim, ylim = ylim, expand = FALSE)
+
+  return(p)
+}
+# Map for Health Behaviors
+map_behavior <- plot_data_map(
+  us.shape, 
+  "Behavior", 
+  xlim = c(-125, -66), 
+  ylim = c(24, 50), 
+  title = "Map of Health Behavior"
+)
+
+# Map for Clinical Care
+map_clinical <- plot_data_map(
+  us.shape, 
+  "Clinical", 
+  xlim = c(-125, -66), 
+  ylim = c(24, 50), 
+  title = "Map of Clinical Care"
+)
+
+# Map for Economic Environment
+map_economic <- plot_data_map(
+  us.shape, 
+  "Economic", 
+  xlim = c(-125, -66), 
+  ylim = c(24, 50), 
+  title = "Map of Economic Environment"
+)
+
+# Map for Social Environment
+map_social <- plot_data_map(
+  us.shape, 
+  "Social", 
+  xlim = c(-125, -66), 
+  ylim = c(24, 50), 
+  title = "Map of Social Environment"
+)
+
+# Map for Public Health Risk
+map_risk <- plot_data_map(
+  us.shape, 
+  "Risk", 
+  xlim = c(-125, -66), 
+  ylim = c(24, 50), 
+  title = "Map of Public Health Risk"
+)
+
+# Map for Demographics
+map_demographics <- plot_data_map(
+  us.shape, 
+  "Demographics", 
+  xlim = c(-125, -66), 
+  ylim = c(24, 50), 
+  title = "Map of Demographics"
+)
+
+```
+\vspace{6mm}
+The map of age-adjusted Mortality shows the distribution at a scale of 0 to 1, and the darker red of the area indicates a higher rate. It will be the basic comparison for other factors’s maps, to check whether the significant area has similar or inverse distribution.
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=4}
+library(patchwork)
+map_behavior
+```
+\vspace{6mm}
+
+In the map of health behaviour, regions with healthier behaviours often exhibit lower mortality rates, suggesting a potential protective effect against premature death.
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=4}
+map_clinical
+```
+\vspace{6mm}
+In the map of clinical care, the west area generally in a negative score while the east is positive, and it indicates not all regions align with the positive coefficient implication.
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=4}
+map_economic
+```
+
+\vspace{6mm}
+The map of the economic environment and the middle area is negative, so it also indicates not all regions align with the positive coefficient implication.
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=4}
+map_social
+```
+\vspace{6mm}
+The social environment map shows a strong clear correlation with mortality rates, which is contrary to the weaker or insignificant coefficient.
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=4}
+map_risk
+```
+\vspace{6mm}
+The map of public health risk presents in total a low score and looks for an insignificant correlation to mortality.
+\vspace{6mm}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=4}
+map_demographics
+```
+\vspace{6mm}
+The map of demographics reflects the strong positive correlation between high scores with high mortality.
+
+Overall to the maps, though there may be visual errors when observing the map, it seems not all of the maps can fully support the conclusion of the coefficient from the model summary. While the factors in alignment can greatly enhance the credibility of the model and provide a visual representation.
+
+\vspace{6mm}
+
+# Conclusion    
+
+This research has assessed all selective predictors of health outcomes and contributes several valuable insights into the factor that correlates the premature age-adjusted mortality. To increase the reliability and address the confounding variable issues, the study utilised the factor analysis metric to categorise the variables similarly into a group by producing a score as the new independent variables. The findings from the regression analyses and geographical visualizations demonstrate the independent variable determinants affecting the dependent variable, in the aspects of behavioural, clinical, economic, environmental, and social interventions. In summary, the research found the alignment of theory for the factors correlation to the premature age-adjusted mortality by multiple apectst approach.
+
+\vspace{6mm}
+
+# Bibliography 
+
+Ahnquist, J., Wamala, S. P., & Lindstrom, M. (2012). Social determinants of health – A question of social or economic capital? Interaction effects of socioeconomic factors on health outcomes. Social Science & Medicine, 74(6), 930-939. https://doi.org/10.1016/j.socscimed.2011.11.026
+
+Barber, R. M., Fullman, N., Sorensen, R. J. D., Bollyky, T., McKee, M., Nolte, E.,... Murray, C. J. L. (2017). Healthcare access and quality index based on mortality from causes amenable to personal health care in 195 countries and territories, 1990-2015: A novel analysis from the global burden of disease study 2015. The Lancet, 390(10091), 231-266. https://doi.org/10.1016/S0140-6736(17)30818-8
+
+Colley, R. C., Michaud, I., & Garriguet, D. (2018). Reallocating time between sleep, sedentary and active behaviours: Associations with obesity and health in Canadian adults. Health Reports, 29(4), 3+. https://link.gale.com/apps/doc/A649711013/AONE?u=usyd&sid=bookmark-AONE&xid=6b6058b3
+
+Eisner, M. D., Jacob, P., Benowitz, N. L., Balmes, J., & Blanc, P. D. (2009). Longer term exposure to secondhand smoke and health outcomes in COPD: Impact of urine 4-(methylnitrosamino)-1-(3-pyridyl)-1-butanol. Nicotine & Tobacco Research, 11(8), 945-953. https://doi.org/10.1093/ntr/ntp091
+
+Ezzati, M., Friedman, A. B., Kulkarni, S. C., & Murray, C. J. (2008). The reversal of fortunes: trends in county mortality and cross-county mortality disparities in the United States. PLoS Med, 5(4), e66. https://doi.org/10.1371/journal.pmed.0050066
+
+James, P., Hart, J. E., Banay, R. F., & Laden, F. (2015). Exposure to Greenness and Mortality in a Nationwide Prospective Cohort Study of Women. Environmental Health Perspectives, 124(9), 1344-1352. https://doi.org/10.1289/ehp.151036
+
+Majeed, H., Baumann, S., & Majeed, H. (2023). Understanding the association between county-level unemployment and health stratified by education and income in the southwestern United States. Sci Rep, 13, 21988. https://doi.org/10.1038/s41598-023-49088-z
+
+Pope, C. A., Ezzati, M., & Dockery, D. W. (2009). Fine-Particulate Air Pollution and Life Expectancy in the United States. New England Journal of Medicine, 360(4), 376-386. DOI: 10.1056/NEJMsa0805646
+
+Remington, P. L., Catlin, B. B., & Gennuso, K. P. (2015). The County Health Rankings: rationale and methods. Popul Health Metrics, 13, 11. https://doi.org/10.1186/s12963-015-0044-2
+
+Hood, C. M., Gennuso, K. P., Swain, G. R., & Catlin, B. B. (2016). County Health Rankings: Relationships Between Determinant Factors and Health Outcomes. American Journal of Preventive Medicine, 50(2), 129–135. https://doi.org/10.1016/j.amepre.2015.08.024
